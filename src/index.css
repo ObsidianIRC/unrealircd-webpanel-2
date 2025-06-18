@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default theme colors using HSL with custom properties for accent colors */
+    --primary-hue: 222;
+    --primary-saturation: 84%;
+
+    /* Light theme */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 50%);
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 50%);
+    --chart-1: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 61%);
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Dark theme - Comfortable modern colors */
+    --background: 214 19% 16%;       /* Main background - #212830 (your preferred color) */
+    --foreground: 220 9% 95%;        /* Text color - soft white */
+    --card: 214 19% 19%;             /* Cards/containers - slightly lighter than background */
+    --card-foreground: 220 9% 95%;   /* Card text */
+    --popover: 214 19% 19%;          /* Popover background */
+    --popover-foreground: 220 9% 95%; /* Popover text */
+    --primary: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 50%);
+    --primary-foreground: 214 19% 16%;
+    --secondary: 214 19% 22%;        /* Secondary elements - lighter for buttons/inputs */
+    --secondary-foreground: 220 9% 95%;
+    --muted: 214 19% 22%;            /* Muted backgrounds */
+    --muted-foreground: 220 9% 70%;  /* Muted text */
+    --accent: 214 19% 22%;           /* Accent backgrounds */
+    --accent-foreground: 220 9% 95%; /* Accent text */
+    --destructive: 0 62% 50%;        /* Destructive actions */
+    --destructive-foreground: 220 9% 95%;
+    --border: 214 19% 26%;           /* Borders - lighter for better definition */
+    --input: 214 19% 22%;            /* Input backgrounds */
+    --ring: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 50%);
+    --chart-1: var(--primary-hue) var(--primary-saturation) var(--primary-lightness, 70%);
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-md;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Enhanced accent color support */
+.accent-bg {
+  background-color: hsl(var(--primary));
+}
+
+.accent-text {
+  color: hsl(var(--primary));
+}
+
+.accent-border {
+  border-color: hsl(var(--primary));
+}
+
+.accent-hover:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+/* Fix for components that need dynamic accent colors */
+.bg-primary {
+  background-color: hsl(var(--primary)) !important;
+}
+
+.text-primary {
+  color: hsl(var(--primary)) !important;
+}
+
+.border-primary {
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* Dynamic red colors that adjust for dark mode */
+.bg-red-dynamic {
+  background-color: hsl(0 84% 60%);
+}
+
+.text-red-dynamic {
+  color: hsl(0 84% 60%);
+}
+
+.border-red-dynamic {
+  border-color: hsl(0 84% 60%);
+}
+
+.dark .bg-red-dynamic {
+  background-color: hsl(0 84% 65%);
+}
+
+.dark .text-red-dynamic {
+  color: hsl(0 84% 65%);
+}
+
+.dark .border-red-dynamic {
+  border-color: hsl(0 84% 65%);
+}
