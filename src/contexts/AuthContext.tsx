@@ -1,11 +1,11 @@
-import type React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import { getPermissionsForRole, type Permission } from '@/lib/permissions';
 
 interface User {
   id: string;
   username: string;
   role: string;
-  permissions: string[];
+  permissions: Permission[];
 }
 
 interface AuthContextType {
@@ -18,7 +18,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,17 +28,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = localStorage.getItem('authToken');
         if (token) {
-          // For now, assume token is valid and set a basic user
-          // In a real app, you'd validate the token with your API
+          // Try to decode token or validate with server
+          console.log('🔍 Found existing auth token');
+          // For now, create a mock user - in production, validate token with server
           setUser({
             id: '1',
             username: 'admin',
             role: 'admin',
-            permissions: ['*']
+            permissions: getPermissionsForRole('admin')
           });
+        } else {
+          console.log('🚫 No auth token found');
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error('❌ Auth check failed:', error);
         localStorage.removeItem('authToken');
       } finally {
         setIsLoading(false);
@@ -51,27 +54,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Import API service dynamically to avoid circular dependency
-      const { apiService } = await import('@/lib/api');
-      const response = await apiService.login(username, password);
+      console.log(`🔐 Login attempt: ${username}`);
+      
+      const response = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-      if (response.success && response.user) {
+      const data = await response.json();
+      console.log('📥 Login response:', data);
+
+      if (data.success && data.user && data.token) {
+        // Get permissions based on user role
+        const userPermissions = getPermissionsForRole(data.user.role);
+        
         const userData = {
-          id: response.user.id.toString(),
-          username: response.user.username,
-          role: response.user.role,
-          permissions: JSON.parse(response.user.permissions || '[]')
+          id: data.user.id.toString(),
+          username: data.user.username,
+          role: data.user.role,
+          permissions: userPermissions
         };
 
         setUser(userData);
-        if (response.token) {
-          localStorage.setItem('authToken', response.token);
-        }
+        localStorage.setItem('authToken', data.token);
+        console.log('✅ Login successful, user set:', userData);
         return true;
+      } else {
+        console.error('❌ Login failed:', data.error);
+        return false;
       }
-      return false;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('❌ Login error:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -79,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    console.log('🚪 Logging out user');
     setUser(null);
     localStorage.removeItem('authToken');
   };
@@ -98,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Export the useAuth hook
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -105,3 +123,5 @@ export function useAuth() {
   }
   return context;
 }
+
+export { AuthContext };

@@ -1051,8 +1051,12 @@ func matchesSearchQuery(text, query string) bool {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Log the request
+	log.Printf("🔐 Login request from %s", r.RemoteAddr)
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("❌ Invalid request body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(LoginResponse{
 			Success: false,
@@ -1061,8 +1065,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("🔐 Login attempt for user: %s", req.Username)
+
 	user, err := authenticateUser(req.Username, req.Password)
 	if err != nil {
+		log.Printf("❌ Authentication failed for %s: %v", req.Username, err)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(LoginResponse{
 			Success: false,
@@ -1074,7 +1081,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Generate JWT token
 	token, err := generateJWT(user)
 	if err != nil {
-		log.Printf("Failed to generate JWT: %v", err)
+		log.Printf("❌ Failed to generate JWT for %s: %v", user.Username, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(LoginResponse{
 			Success: false,
@@ -1085,6 +1092,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("✅ User %s logged in successfully", user.Username)
 
+	// Return 200 OK with the response
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(LoginResponse{
 		Success: true,
 		User:    user,
@@ -1269,13 +1278,20 @@ func main() {
 
 	// Initialize database
 	if err := initDatabase(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatal("Failed to initialize database:", err)
 	}
-	defer func() {
-		if db != nil {
-			db.Close()
+
+	// Verify admin user exists
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM webpanel_users WHERE username = 'admin'").Scan(&count)
+	if err == nil && count == 0 {
+		log.Println("🔧 Creating missing admin user...")
+		if err := createDefaultAdmin(); err != nil {
+			log.Printf("❌ Failed to create admin user: %v", err)
+		} else {
+			log.Println("✅ Admin user created successfully")
 		}
-	}()
+	}
 
 	// Initialize RPC client
 	initRPCClient()
@@ -1291,7 +1307,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Public routes (no authentication required)
-	r.HandleFunc("/api/auth/login", loginHandler).Methods("POST")
+	r.HandleFunc("/api/auth/login", loginHandler).Methods("POST", "OPTIONS")
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
 			"status":        "ok",
@@ -1300,11 +1316,11 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(status)
-	}).Methods("GET")
+	}).Methods("GET", "OPTIONS")
 
 	// Protected API routes
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(authMiddleware) // Apply authentication to all /api routes
+	api.Use(authMiddleware) // Apply authentication to all /api routes except login
 
 	// Network endpoints (require user role or higher)
 	networkRouter := api.PathPrefix("/network").Subrouter()
@@ -1344,26 +1360,24 @@ func main() {
 	// WebSocket endpoint (could add auth here too if needed)
 	r.HandleFunc("/ws", websocketHandler)
 
-	// CORS configuration
+	// CORS configuration - USE THIS INSTEAD
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173"}, // React dev servers
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:5174"}, // All possible React dev servers
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
+		Debug:           true, // Enable debug logging
 	})
 
 	// Wrap router with CORS
 	handler := c.Handler(r)
 
 	fmt.Printf("🚀 UnrealIRCd Admin Panel API server starting on port %s\n", config.Port)
-	fmt.Printf("📊 API endpoints available at http://localhost:%s/api\n", config.Port)
-	fmt.Printf("🔌 WebSocket endpoint at ws://localhost:%s/ws\n", config.Port)
+	fmt.Printf("🔗 Frontend should be at: http://localhost:5173\n")
+	fmt.Printf("🔗 Backend API at: http://localhost:%s\n", config.Port)
+	fmt.Printf("🔗 Health check: http://localhost:%s/health\n", config.Port)
 
-	if config.UseMockData {
-		fmt.Printf("⚠️  Using mock data (UnrealIRCd RPC not configured)\n")
-	} else {
-		fmt.Printf("🔗 Connected to UnrealIRCd RPC at %s\n", config.UnrealRPCURL)
+	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
+		log.Fatal("Failed to start server:", err)
 	}
-
-	log.Fatal(http.ListenAndServe(":"+config.Port, handler))
 }
